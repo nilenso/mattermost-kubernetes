@@ -1,0 +1,25 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: google/cloud-sdk:slim
+    steps:
+      - checkout
+      - run:
+          name: Install Helm
+          command: curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get -o install-helm.sh && chmod 700 install-helm.sh && bash install-helm.sh && helm init --client-only
+      - run:
+          name: Helm package
+          command: mkdir target && helm package -d target/ ./mattermost-helm
+      - run:
+          name: Helm index
+          command: helm repo index target
+      - run:
+          name: Extract Google key file
+          command: echo $GCLOUD_SERVICE_KEY | base64 --decode > gcloud_service_key.json
+      - run:
+          name: Authenticate gscloud
+          command: gcloud auth activate-service-account --key-file=./gcloud_service_key.json
+      - run:
+          name: Upload helm files
+          command: gsutil cp ./target/* gs://mm-nilenso/
